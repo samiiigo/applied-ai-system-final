@@ -126,16 +126,22 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     song_danceability = float(song.get("danceability", 0.5))
     song_acousticness = float(song.get("acousticness", 0.0))
 
+    genre_weight = 1.0
+    mood_weight = 1.0
+    energy_weight = 4.0
+    danceability_weight = 1.0
+    acoustic_weight = 0.5
+
     if pref_genre and song_genre == pref_genre:
-        score += 2.0
-        reasons.append("genre match (+2.0)")
+        score += genre_weight
+        reasons.append(f"genre match (+{genre_weight:.1f})")
 
     if pref_mood and song_mood == pref_mood:
-        score += 1.0
-        reasons.append("mood match (+1.0)")
+        score += mood_weight
+        reasons.append(f"mood match (+{mood_weight:.1f})")
 
-    # Energy closeness: max +2.0 when identical, tapering to 0 as distance grows.
-    energy_points = max(0.0, 2.0 * (1.0 - abs(song_energy - target_energy)))
+    # Energy closeness: max +4.0 when identical, tapering to 0 as distance grows.
+    energy_points = max(0.0, energy_weight * (1.0 - abs(song_energy - target_energy)))
     score += energy_points
     reasons.append(f"energy closeness (+{energy_points:.2f})")
 
@@ -144,16 +150,16 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
         target_danceability = user_prefs.get("target_danceability")
     if target_danceability is not None:
         target_danceability = float(target_danceability)
-        dance_points = max(0.0, 1.0 * (1.0 - abs(song_danceability - target_danceability)))
+        dance_points = max(0.0, danceability_weight * (1.0 - abs(song_danceability - target_danceability)))
         score += dance_points
         reasons.append(f"danceability closeness (+{dance_points:.2f})")
 
     if likes_acoustic and song_acousticness >= 0.5:
-        score += 0.5
-        reasons.append("acoustic preference match (+0.5)")
+        score += acoustic_weight
+        reasons.append(f"acoustic preference match (+{acoustic_weight:.1f})")
     elif not likes_acoustic and song_acousticness < 0.5:
-        score += 0.5
-        reasons.append("non-acoustic preference match (+0.5)")
+        score += acoustic_weight
+        reasons.append(f"non-acoustic preference match (+{acoustic_weight:.1f})")
 
     return score, reasons
 
