@@ -111,3 +111,74 @@ def test_scoring_modes_change_ranking_order():
 
     assert genre_first[0][0]["title"] == "Genre Match Song"
     assert mood_first[0][0]["title"] == "Mood Match Song"
+
+
+def test_diversity_penalty_limits_repeated_artists():
+    songs = [
+        {
+            "id": 1,
+            "title": "Artist A Strong 1",
+            "artist": "Artist A",
+            "genre": "pop",
+            "mood": "happy",
+            "energy": 0.9,
+            "tempo_bpm": 124,
+            "valence": 0.9,
+            "danceability": 0.9,
+            "acousticness": 0.2,
+            "popularity_0_100": 92,
+            "release_decade": 2020,
+            "mood_tags": "euphoric|party",
+            "instrumentalness": 0.05,
+            "lyrical_density": 0.6,
+            "explicitness": 0.1,
+        },
+        {
+            "id": 2,
+            "title": "Artist A Strong 2",
+            "artist": "Artist A",
+            "genre": "pop",
+            "mood": "happy",
+            "energy": 0.88,
+            "tempo_bpm": 122,
+            "valence": 0.88,
+            "danceability": 0.88,
+            "acousticness": 0.2,
+            "popularity_0_100": 90,
+            "release_decade": 2020,
+            "mood_tags": "euphoric|party",
+            "instrumentalness": 0.05,
+            "lyrical_density": 0.6,
+            "explicitness": 0.1,
+        },
+        {
+            "id": 3,
+            "title": "Different Artist",
+            "artist": "Artist B",
+            "genre": "pop",
+            "mood": "happy",
+            "energy": 0.87,
+            "tempo_bpm": 121,
+            "valence": 0.87,
+            "danceability": 0.87,
+            "acousticness": 0.2,
+            "popularity_0_100": 89,
+            "release_decade": 2020,
+            "mood_tags": "euphoric|party",
+            "instrumentalness": 0.05,
+            "lyrical_density": 0.6,
+            "explicitness": 0.1,
+        },
+    ]
+    prefs = {
+        "genre": "pop",
+        "mood": "happy",
+        "energy": 0.9,
+        "scoring_mode": "genre-first",
+    }
+
+    ranked = recommend_songs(prefs, songs, k=3)
+
+    assert ranked[0][0]["artist"] == "Artist A"
+    assert ranked[1][0]["artist"] == "Artist B"
+    assert len({ranked[0][0]["artist"], ranked[1][0]["artist"]}) == 2

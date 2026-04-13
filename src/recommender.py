@@ -64,6 +64,96 @@ def get_scoring_weights(mode: str) -> Dict[str, float]:
     normalized_mode = str(mode or DEFAULT_SCORING_MODE).strip().lower()
     return SCORING_WEIGHTS_BY_MODE.get(normalized_mode, SCORING_WEIGHTS_BY_MODE[DEFAULT_SCORING_MODE])
 
+
+def _normalize_key(value: object) -> str:
+    return str(value or "").strip().lower()
+
+
+def _build_song_payload(song) -> Dict:
+    return {
+        "id": song.id,
+        "title": song.title,
+        "artist": song.artist,
+        "genre": song.genre,
+        "mood": song.mood,
+        "energy": song.energy,
+        "tempo_bpm": song.tempo_bpm,
+        "valence": song.valence,
+        "danceability": song.danceability,
+        "acousticness": song.acousticness,
+        "popularity_0_100": song.popularity_0_100,
+        "release_decade": song.release_decade,
+        "mood_tags": song.mood_tags,
+        "instrumentalness": song.instrumentalness,
+        "lyrical_density": song.lyrical_density,
+        "explicitness": song.explicitness,
+    }
+
+
+def _apply_diversity_penalty(song: Dict, artist_counts: Dict[str, int], genre_counts: Dict[str, int]) -> Tuple[float, List[str]]:
+    song_payload = song.get("song_data", song.get("song", song))
+    artist_key = _normalize_key(song_payload.get("artist"))
+    genre_key = _normalize_key(song_payload.get("genre"))
+    penalty = 0.0
+    reasons: List[str] = []
+
+    artist_hits = artist_counts.get(artist_key, 0)
+    if artist_key and artist_hits > 0:
+        artist_penalty = 2.5 * artist_hits
+        penalty += artist_penalty
+        reasons.append(f"diversity penalty: repeated artist (-{artist_penalty:.2f})")
+
+    genre_hits = genre_counts.get(genre_key, 0)
+    if genre_key and genre_hits > 0:
+        genre_penalty = 0.85 * genre_hits
+        penalty += genre_penalty
+        reasons.append(f"diversity penalty: repeated genre (-{genre_penalty:.2f})")
+
+    return penalty, reasons
+
+
+def _rank_with_diversity(scored_songs: List[Dict], k: int) -> List[Tuple[Dict, float, str]]:
+    remaining = list(scored_songs)
+    ranked: List[Tuple[Dict, float, str]] = []
+    selected_artist_counts: Dict[str, int] = {}
+    selected_genre_counts: Dict[str, int] = {}
+
+    while remaining and len(ranked) < k:
+        best_index = 0
+        best_adjusted_score = float("-inf")
+        best_base_score = float("-inf")
+        best_penalty_reasons: List[str] = []
+
+        for index, candidate in enumerate(remaining):
+            penalty, penalty_reasons = _apply_diversity_penalty(candidate, selected_artist_counts, selected_genre_counts)
+            adjusted_score = candidate["score"] - penalty
+
+            if (
+                adjusted_score > best_adjusted_score
+                or (adjusted_score == best_adjusted_score and candidate["score"] > best_base_score)
+            ):
+                best_index = index
+                best_adjusted_score = adjusted_score
+                best_base_score = candidate["score"]
+                best_penalty_reasons = penalty_reasons
+
+        chosen = remaining.pop(best_index)
+        chosen_payload = chosen.get("song_data", chosen.get("song", chosen))
+        artist_key = _normalize_key(chosen_payload.get("artist"))
+        genre_key = _normalize_key(chosen_payload.get("genre"))
+
+        if artist_key:
+            selected_artist_counts[artist_key] = selected_artist_counts.get(artist_key, 0) + 1
+        if genre_key:
+            selected_genre_counts[genre_key] = selected_genre_counts.get(genre_key, 0) + 1
+
+        explanation = chosen["explanation"]
+        if best_penalty_reasons:
+            explanation = f"{explanation}; {'; '.join(best_penalty_reasons)}"
+        ranked.append((chosen["song"], best_adjusted_score, explanation))
+
+    return ranked
+
 @dataclass
 class Song:
     """
@@ -114,7 +204,7 @@ class Recommender:
 
     def recommend(self, user: UserProfile, k: int = 5, mode: str = DEFAULT_SCORING_MODE) -> List[Song]:
         """Return top-k songs ranked by compatibility with the user profile."""
-        scored: List[Tuple[Song, float]] = []
+        scored: List[Dict] = []
         user_prefs = {
             "genre": user.favorite_genre,
             "mood": user.favorite_mood,
@@ -130,24 +220,12 @@ class Recommender:
         }
 
         for song in self.songs:
-            song_dict = {
-                "genre": song.genre,
-                "mood": song.mood,
-                "energy": song.energy,
-                "danceability": song.danceability,
-                "acousticness": song.acousticness,
-                "popularity_0_100": song.popularity_0_100,
-                "release_decade": song.release_decade,
-                "mood_tags": song.mood_tags,
-                "instrumentalness": song.instrumentalness,
-                "lyrical_density": song.lyrical_density,
-                "explicitness": song.explicitness,
-            }
+            song_dict = _build_song_payload(song)
             score, _ = score_song(user_prefs, song_dict)
-            scored.append((song, score))
+            scored.append({"song": song, "song_data": song_dict, "score": score, "explanation": ""})
 
-        scored.sort(key=lambda item: item[1], reverse=True)
-        return [song for song, _ in scored[:k]]
+        ranked = _rank_with_diversity(scored, k)
+        return [item[0] for item in ranked]
 
     def explain_recommendation(self, user: UserProfile, song: Song, mode: str = DEFAULT_SCORING_MODE) -> str:
         """Explain why a specific song was recommended for this user."""
@@ -164,19 +242,7 @@ class Recommender:
             "max_explicitness": user.max_explicitness,
             "scoring_mode": mode,
         }
-        song_dict = {
-            "genre": song.genre,
-            "mood": song.mood,
-            "energy": song.energy,
-            "danceability": song.danceability,
-            "acousticness": song.acousticness,
-            "popularity_0_100": song.popularity_0_100,
-            "release_decade": song.release_decade,
-            "mood_tags": song.mood_tags,
-            "instrumentalness": song.instrumentalness,
-            "lyrical_density": song.lyrical_density,
-            "explicitness": song.explicitness,
-        }
+        song_dict = _build_song_payload(song)
         _, reasons = score_song(user_prefs, song_dict)
         return "; ".join(reasons)
 
@@ -371,8 +437,6 @@ def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5, mode: Optio
         score, reasons = score_song(prefs_with_mode, song)
         reasons.insert(0, f"scoring mode: {str(active_mode).strip().lower()}")
         explanation = "; ".join(reasons)
-        scored.append((song, score, explanation))
+        scored.append({"song": song, "score": score, "explanation": explanation})
 
-    # Use sorted() to keep the original list unchanged and return a new ranked list.
-    ranked = sorted(scored, key=lambda item: item[1], reverse=True)
-    return ranked[:k]
+    return _rank_with_diversity(scored, k)
