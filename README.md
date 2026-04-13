@@ -76,6 +76,41 @@ pip install -r requirements.txt
 python -m src.main
 ```
 
+### Phase 3 CLI Verification
+
+Latest terminal run using default profile (`genre=pop`, `mood=happy`, `energy=0.8`):
+
+```text
+Loaded songs: 10
+
+Top recommendations:
+
+1. Greedy by Ariana Grande
+   Score   : 4.48
+   Reasons :
+   - genre match (+2.0)
+   - energy closeness (+1.98)
+   - non-acoustic preference match (+0.5)
+
+2. Talk by DJ Khalid
+   Score   : 4.16
+   Reasons :
+   - genre match (+2.0)
+   - energy closeness (+1.66)
+   - non-acoustic preference match (+0.5)
+
+3. Yukon by Justin Bieber
+   Score   : 4.06
+   Reasons :
+   - genre match (+2.0)
+   - energy closeness (+1.56)
+   - non-acoustic preference match (+0.5)
+```
+
+Screenshot placeholder (add your terminal screenshot file here):
+
+`![Phase 3 CLI output](docs/phase3-cli-output.png)`
+
 ### Running Tests
 
 Run the starter tests with:
