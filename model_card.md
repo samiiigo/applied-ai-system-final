@@ -1,53 +1,67 @@
-# 🎧 Model Card: Music Recommender Simulation
+# Model Card: Music Recommender Simulation
 
-## 1. Model Name
+## Model Name
 
-VibeFinder Lite
+VibeFinder Lite 1.0
 
----
+## Goal / Task
 
-## 2. Intended Use
+This model suggests songs for a user based on their taste profile.
+It tries to rank songs that best match preferred genre, mood, and energy.
 
-This recommender suggests songs from a small classroom catalog based on a listener’s genre, mood, and energy preferences. It is designed for learning and evaluation, not for real users. The system assumes a user can describe their taste in a few simple labels and a target energy level.
+## Data Used
 
----
+The dataset has 10 songs in `data/songs.csv`.
+Each song includes genre, mood, energy, tempo, valence, danceability, and acousticness.
+The catalog is small and not balanced across all genres.
+Pop-style songs appear more often than niche styles.
 
-## 3. How the Model Works
+## Algorithm Summary
 
-Each song is described by genre, mood, energy, danceability, and acousticness. The recommender compares those features to the user’s preferences and gives points for matches. Genre and mood get exact-match credit, energy gets the largest numeric score because close energy usually matters most, danceability can help if the user provides a target, and acousticness adds a small bonus when it matches the user’s style. I shifted the experiment to make energy matter more and genre matter less so I could see how sensitive the ranking was.
+The model gives each song a compatibility score.
+It adds points for exact genre and mood matches.
+It adds the most points when song energy is close to the user's target energy.
+It can also add points for danceability closeness (if provided) and for acoustic vs non-acoustic preference.
+Songs are sorted by total score, and the top results are returned.
 
----
+## Observed Behavior / Biases
 
-## 4. Data
+The recommender is very sensitive to energy because energy has the largest weight.
+This can push high-energy songs up, even if genre is only a partial fit.
+The small dataset also creates catalog bias.
+Since pop songs are overrepresented, pop listeners often get stronger matches.
+Exact mood matching is rigid and may miss "in-between" moods.
 
-The catalog contains 10 songs in `data/songs.csv`. It includes pop, R&B, hip-hop, rap, electronic, and indie songs, with moods such as happy, chill, sad, intense, and peaceful. I did not add or remove songs. The dataset is small and uneven, so it does not cover every taste equally and it does not represent many subgenres.
+## Evaluation Process
 
----
+I tested four profiles: Happy Pop, Chill Lofi, Deep Intense Rock, and Conflicted Edge Case.
+For each profile, I reviewed the top 5 songs and explanation strings.
+I compared whether top songs matched the profile's genre, mood, and energy goals.
+I also compared rankings before and after weight tuning to see how behavior changed.
 
-## 5. Strengths
+## Intended Use and Non-Intended Use
 
-The system works well for users whose preferences are clear and direct. Happy pop users get obvious pop matches near the top, and acoustic-friendly chill users tend to get softer songs with similar energy. The explanations also make sense to a non-programmer because each score can be traced back to a few simple reasons.
+Intended use: classroom learning, demos, and basic recommender experiments.
+It is useful for showing how simple scoring rules produce recommendations.
 
----
+Non-intended use: real music product decisions, personalized mental health support, or high-stakes profiling.
+It should not be used as a production recommender because the dataset is tiny and biased.
 
-## 6. Limitations and Bias
+## Ideas for Improvement
 
-The biggest weakness is the tiny catalog, which limits variety no matter what the user wants. Pop is overrepresented, so pop listeners have more chances to get a strong match than users with niche tastes. The recommender also depends on exact mood labels, which makes it rigid for users whose taste is more mixed or emotional than a single word. After the weight shift, energy became even more dominant, so songs with the right intensity can stay high even when genre is only a partial fit. That creates a bias toward high-energy songs and can make the same tracks appear for very different users.
+1. Expand the song catalog to improve coverage and fairness.
+2. Replace exact mood matches with soft similarity across related moods.
+3. Add a diversity rule so the top results are less repetitive.
 
----
+## Personal Reflection
 
-## 7. Evaluation
+My biggest learning moment was seeing how one weight change can reshape the whole ranking.
+A small scoring rule can create large behavior shifts.
 
-I tested four profiles: Happy Pop, Chill Lofi, Deep Intense Rock, and Conflicted Edge Case. I reviewed the top 5 songs for each profile and checked whether the explanation lines matched the preferences I gave. Happy Pop mostly returned pop songs with high energy, while Chill Lofi moved to softer tracks led by Sincerity, which matched my intuition. Deep Intense Rock promoted Evil Jordan to the top because it matched both intense mood and high energy. The most surprising result was Conflicted Edge Case: even with mixed signals (pop, sad, high energy), Passionfruit ranked first because it satisfied mood and genre together and still stayed close enough on energy. This showed that the model can combine conflicting preferences, but it also confirmed that changing one weight can quickly shift which songs dominate.
+AI tools helped me move faster when drafting tests, explanations, and documentation.
+I still had to double-check outputs against the actual code and run behavior.
 
----
+I was surprised that a simple weighted formula can still feel like a "real" recommender.
+Even basic feature matching can produce believable top picks.
 
-## 8. Future Work
-
-I would add more songs so the recommender has a better chance of making diverse choices. I would also consider soft ranges for mood instead of exact label matches, because real listeners often want something between two vibes. A better diversity rule could keep the top five from all being near-duplicates in energy or genre. I would also improve the explanations so they mention tradeoffs instead of only listing the matched features.
-
----
-
-## 9. Personal Reflection
-
-This project made recommender systems feel more transparent to me because the ranking comes from a small set of rules that I can inspect directly. I also noticed how easy it is for a simple weight change to reshape the whole list. That made it clear why real recommendation systems need careful testing for bias, not just good-looking top results.
+If I extend this project, I want to add more data, test for fairness across profiles, and try hybrid scoring (rules + similarity learning).

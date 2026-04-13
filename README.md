@@ -156,10 +156,9 @@ Read and complete `model_card.md`:
 
 [**Model Card**](model_card.md)
 
-Write 1 to 2 paragraphs here about what you learned:
+My biggest learning moment was seeing how one scoring weight change could reorder most recommendations. It showed me how recommenders turn simple feature comparisons (genre, mood, energy, acousticness) into ranked predictions that can feel very personal. AI tools helped me draft and refine explanations quickly, but I still needed to verify every claim against the real scoring logic and profile results.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+I also learned how bias can appear even in a small classroom project. Because the catalog is tiny and pop-heavy, some users get better matches than others. Next, I would expand the dataset, use softer mood similarity instead of exact labels, and add a diversity rule so the top results are less repetitive.
 
 ---
 
