@@ -16,6 +16,14 @@ try:
 except ImportError:
     from recommender import load_songs, recommend_songs
 
+try:
+    from .retrieval import retrieve_candidates
+    from .logger import log_recommendation
+    from .recommender import retrieve_and_rank, explain_retrieval_evidence
+    RETRIEVAL_AVAILABLE = True
+except ImportError:
+    RETRIEVAL_AVAILABLE = False
+
 
 def _wrap_cell(value: str, width: int) -> list:
     lines = textwrap.wrap(str(value), width=width) or [""]
@@ -77,6 +85,27 @@ def print_recommendations(profile_name: str, user_prefs: dict, songs: list) -> N
     print("Top 5 recommendations:")
     _print_recommendation_table(recommendations)
 
+
+def print_rag_recommendations(profile_name: str, user_prefs: dict, songs: list) -> None:
+    """RAG-aware recommendation with retrieval transparency."""
+    if not RETRIEVAL_AVAILABLE:
+        print_recommendations(profile_name, user_prefs, songs)
+        return
+    
+    mode = user_prefs.get("scoring_mode", "balanced")
+    retrieved, recommendations = retrieve_and_rank(user_prefs, songs, k=5, retrieve_k=8, mode=mode)
+    
+    print(f"\n=== {profile_name} (RAG) ===")
+    print(f"Scoring Mode: {mode}")
+    print(f"Preferences: {user_prefs}")
+    print(f"\nRetrieval: {len(retrieved)} candidates retrieved from {len(songs)} songs")
+    print("-" * 70)
+    print("Top 5 recommendations with retrieval evidence:")
+    _print_recommendation_table(recommendations)
+    
+    # Log the recommendation event
+    log_recommendation(user_prefs, profile_name, retrieved, recommendations, mode=mode, confidence="medium")
+
 def main() -> None:
     songs = load_songs("data/songs.csv")
     print(f"Loaded songs: {len(songs)}")
@@ -129,7 +158,22 @@ def main() -> None:
     ]
 
     for profile_name, user_prefs in profiles:
-        print_recommendations(profile_name, user_prefs, songs)
+        print_rag_recommendations(profile_name, user_prefs, songs)
+    
+    # Run evaluation if available
+    if RETRIEVAL_AVAILABLE:
+        try:
+            from evaluation import run_full_evaluation
+            print(f"\n{'='*70}")
+            print("RUNNING RAG EVALUATION SUITE")
+            print(f"{'='*70}")
+            eval_results = run_full_evaluation(csv_path="../data/songs.csv", verbose=False)
+            print(f"\nEvaluation Summary:")
+            print(f"  Genre Recall: {eval_results['retrieval']['aggregate_metrics']['avg_genre_recall']:.1%}")
+            print(f"  Mood Recall:  {eval_results['retrieval']['aggregate_metrics']['avg_mood_recall']:.1%}")
+            print(f"  Groundedness: {eval_results['groundedness']['groundedness_score']:.1%}")
+        except Exception as e:
+            print(f"[Evaluation skipped: {e}]")
 
 
 if __name__ == "__main__":

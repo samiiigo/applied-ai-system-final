@@ -1,6 +1,7 @@
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
-import csv
+import json
+import os
 
 DEFAULT_SCORING_MODE = "balanced"
 SCORING_WEIGHTS_BY_MODE: Dict[str, Dict[str, float]] = {
@@ -248,35 +249,36 @@ class Recommender:
 
 def load_songs(csv_path: str) -> List[Dict]:
     """
-    Loads songs from a CSV file.
+    Loads songs from JSON file.
     Required by src/main.py
     """
-    """Load songs from CSV into dictionaries with numeric fields parsed."""
-    songs: List[Dict] = []
-    with open(csv_path, "r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            songs.append(
-                {
-                    "id": int(row["id"]),
-                    "title": row["title"],
-                    "artist": row["artist"],
-                    "genre": row["genre"],
-                    "mood": row["mood"],
-                    "energy": float(row["energy"]),
-                    "tempo_bpm": float(row["tempo_bpm"]),
-                    "valence": float(row["valence"]),
-                    "danceability": float(row["danceability"]),
-                    "acousticness": float(row["acousticness"]),
-                    "popularity_0_100": int(row.get("popularity_0_100", 50)),
-                    "release_decade": int(row.get("release_decade", 2010)),
-                    "mood_tags": row.get("mood_tags", ""),
-                    "instrumentalness": float(row.get("instrumentalness", 0.0)),
-                    "lyrical_density": float(row.get("lyrical_density", 0.5)),
-                    "explicitness": float(row.get("explicitness", 0.0)),
-                }
-            )
-    return songs
+    # Load from JSON format
+    json_path = csv_path.replace(".csv", ".json") if csv_path.endswith(".csv") else csv_path + ".json"
+    
+    if os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as f:
+            songs = json.load(f)
+            # Ensure all songs have the expected fields
+            for song in songs:
+                song.setdefault("id", 1)
+                song.setdefault("title", "Unknown")
+                song.setdefault("artist", "Unknown")
+                song.setdefault("genre", "Unknown")
+                song.setdefault("mood", "neutral")
+                song.setdefault("energy", 0.5)
+                song.setdefault("tempo_bpm", 100)
+                song.setdefault("valence", 0.5)
+                song.setdefault("danceability", 0.5)
+                song.setdefault("acousticness", 0.5)
+                song.setdefault("popularity_0_100", 50)
+                song.setdefault("release_decade", 2010)
+                song.setdefault("mood_tags", "")
+                song.setdefault("instrumentalness", 0.0)
+                song.setdefault("lyrical_density", 0.5)
+                song.setdefault("explicitness", 0.0)
+            return songs
+    
+    raise FileNotFoundError(f"JSON file not found at {json_path}")
 
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     """
@@ -440,3 +442,114 @@ def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5, mode: Optio
         scored.append({"song": song, "score": score, "explanation": explanation})
 
     return _rank_with_diversity(scored, k)
+
+
+# ============================================================================
+# RAG-based recommendation functions (additive, non-breaking)
+# ============================================================================
+
+def retrieve_and_rank(
+    user_prefs: Dict,
+    songs: List[Dict],
+    k: int = 5,
+    mode: Optional[str] = None,
+    retrieve_k: int = 15,
+) -> Tuple[List[Dict], List[Tuple[Dict, float, str]]]:
+    """
+    RAG-style recommendation: retrieve candidates, then rank.
+    
+    This is a non-breaking addition that layers retrieval before the existing
+    ranking logic. The retrieval stage filters songs based on metadata matching,
+    and the ranking stage uses the existing score_song logic for final scoring.
+    
+    Args:
+        user_prefs: User profile dictionary.
+        songs: Full song library.
+        k: Number of final recommendations to return.
+        mode: Scoring mode (balanced, genre-first, mood-first, energy-focused).
+        retrieve_k: Number of candidates to retrieve before final ranking.
+    
+    Returns:
+        Tuple of (retrieved_candidates, final_recommendations)
+        - retrieved_candidates: List of retrieved song dicts
+        - final_recommendations: List of (song_dict, score, explanation) tuples
+    """
+    try:
+        from retrieval import retrieve_candidates
+    except ImportError:
+        # Fallback if retrieval module not available: use all songs
+        retrieved = songs
+    else:
+        # Call retrieval layer to get top-k candidates
+        retrieved_with_scores = retrieve_candidates(user_prefs, songs, k=retrieve_k)
+        retrieved = [song for song, score in retrieved_with_scores]
+    
+    # Score and rank retrieved candidates using existing logic
+    final_recs = recommend_songs(user_prefs, retrieved, k=k, mode=mode)
+    
+    return retrieved, final_recs
+
+
+def explain_retrieval_evidence(
+    user_prefs: Dict,
+    song: Dict,
+) -> Dict[str, any]:
+    """
+    Explain what metadata drove retrieval of a song.
+    
+    Returns a dictionary with:
+    - matched_genre: bool
+    - matched_mood: bool
+    - energy_closeness: float
+    - tag_matches: list of matching mood tags
+    - explanation: human-readable string
+    """
+    def _normalize(text: str) -> str:
+        return str(text or "").strip().lower()
+    
+    pref_genre = _normalize(user_prefs.get("genre", ""))
+    pref_mood = _normalize(user_prefs.get("mood", ""))
+    target_energy = float(user_prefs.get("energy", 0.5))
+    pref_mood_tags = user_prefs.get("preferred_mood_tags", [])
+    
+    song_genre = _normalize(song.get("genre", ""))
+    song_mood = _normalize(song.get("mood", ""))
+    song_energy = float(song.get("energy", 0.5))
+    song_mood_tags_raw = str(song.get("mood_tags", ""))
+    
+    # Parse mood tags
+    if isinstance(pref_mood_tags, str):
+        pref_tags_set = {_normalize(t) for t in pref_mood_tags.replace("|", ",").split(",") if t.strip()}
+    else:
+        pref_tags_set = {_normalize(t) for t in pref_mood_tags if t}
+    
+    song_tags = {
+        _normalize(t)
+        for t in song_mood_tags_raw.replace("|", ",").split(",")
+        if t.strip()
+    }
+    
+    matched_genre = bool(pref_genre and song_genre == pref_genre)
+    matched_mood = bool(pref_mood and song_mood == pref_mood)
+    energy_closeness = 1.0 - abs(song_energy - target_energy)
+    tag_matches = list(song_tags & pref_tags_set)
+    
+    evidence_parts = []
+    if matched_genre:
+        evidence_parts.append(f"genre {pref_genre}")
+    if matched_mood:
+        evidence_parts.append(f"mood {pref_mood}")
+    if tag_matches:
+        evidence_parts.append(f"tags {', '.join(tag_matches)}")
+    if energy_closeness > 0.7:
+        evidence_parts.append(f"energy {song_energy:.2f}")
+    
+    explanation = f"Retrieved because: {'; '.join(evidence_parts) if evidence_parts else 'profile similarity'}"
+    
+    return {
+        "matched_genre": matched_genre,
+        "matched_mood": matched_mood,
+        "energy_closeness": energy_closeness,
+        "tag_matches": tag_matches,
+        "explanation": explanation,
+    }
