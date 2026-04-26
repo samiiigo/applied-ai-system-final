@@ -249,14 +249,34 @@ class Recommender:
 
 def load_songs(csv_path: str) -> List[Dict]:
     """
-    Loads songs from JSON file.
-    Required by src/main.py
+    Load songs from JSON data.
+
+    Accepts a `.csv` path (auto-converted to `.json`), a `.json` path,
+    or a basename without extension.
     """
-    # Load from JSON format
-    json_path = csv_path.replace(".csv", ".json") if csv_path.endswith(".csv") else csv_path + ".json"
+    normalized_path = str(csv_path or "").strip()
+    if normalized_path.endswith(".csv"):
+        json_path = normalized_path[:-4] + ".json"
+    elif normalized_path.endswith(".json"):
+        json_path = normalized_path
+    else:
+        json_path = normalized_path + ".json"
     
-    if os.path.exists(json_path):
-        with open(json_path, "r", encoding="utf-8") as f:
+    candidate_paths = [json_path]
+    if not os.path.isabs(json_path):
+        src_relative_candidate = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), json_path)
+        )
+        project_root_candidate = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "..", json_path)
+        )
+        candidate_paths.append(src_relative_candidate)
+        candidate_paths.append(project_root_candidate)
+
+    resolved_path = next((path for path in candidate_paths if os.path.exists(path)), None)
+
+    if resolved_path:
+        with open(resolved_path, "r", encoding="utf-8") as f:
             songs = json.load(f)
             # Ensure all songs have the expected fields
             for song in songs:
