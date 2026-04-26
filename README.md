@@ -1,17 +1,18 @@
-# 🎵 MoodMatch RAG: Explainable Music Recommendation System
+# 🎵 Playlist Chaos: AI-Assisted Music Recommendation and Playlist Organizer
 
 ## Project Summary
 
-This project implements a **RAG-based (Retrieval-Augmented Generation) music recommender** that extends an earlier assignment-style recommender into a transparent, explainable recommendation system.
+This project implements a **Streamlit-based playlist organizer** that helps users explore a music library, classify songs into mood-based playlists, and get lightweight recommendation behavior from profile settings and song attributes.
 
 The system helps users discover songs that match their mood, genre preferences, and energy levels. Instead of treating recommendations as a black box, it:
 
-1. **Retrieves** relevant songs from the library based on metadata filtering (genre, mood, energy, tags)
-2. **Ranks** them using weighted scoring rules that reflect user preferences
-3. **Explains** why each song was recommended, showing the evidence (matching genre, mood tags, energy closeness, etc.)
-4. **Logs** all recommendation events for transparency and auditing
+1. **Classifies** songs into Hype, Chill, or Mixed playlists using profile thresholds and song metadata
+2. **Searches** playlist views so users can filter songs by title, artist, mood, genre, or tags
+3. **Adds** new songs through a normalized input form inside the app
+4. **Recommends** songs with lightweight profile-aware scoring and random lucky-pick behavior
+5. **Tracks** pick history and playlist statistics for visibility and reuse
 
-This design follows RAG principles: retrieval happens first to gather grounded context, then ranking and explanation use only that retrieved set, avoiding hallucinated recommendations.
+This design follows a pragmatic playlist-first workflow: playlist classification happens first, then search, random selection, and recommendation logic use that organized library.
 
 ---
 
@@ -24,6 +25,27 @@ Each song has metadata including:
 - **Tempo, Valence, Popularity, Decade** — additional context
 - **Mood Tags** (pipe-separated) — fine-grained emotional tags
 - **Instrumentalness, Lyrical Density, Explicitness** — content features
+
+### Playlist Flow
+
+**1. Profile Setup**
+- Set a profile name, favorite genre, Hype minimum energy, Chill maximum energy, and whether to show Mixed
+
+**2. Library Expansion**
+- Add new songs with title, artist, genre, mood, energy, and tags
+- Normalize user input before storing it in session state
+
+**3. Playlist Classification**
+- Assign songs to Hype, Chill, or Mixed based on the current profile and metadata
+
+**4. Playlist Browsing**
+- Show playlist tabs with search filtering for quick lookup
+
+**5. Lucky Picks and History**
+- Pick random songs from any playlist and keep a local history of picks
+
+**6. Statistics**
+- Summarize total songs, playlist counts, hype ratio, average energy, and top artist
 
 ### Recommendation Flow
 
@@ -46,11 +68,11 @@ Each song has metadata including:
 
 ### Key Design Decisions
 
-- **Non-breaking**: New RAG logic is additive; existing API unchanged
-- **Hybrid retrieval**: Metadata filtering + numeric similarity, no embeddings required
-- **Grounded explanations**: Only recommend songs in the indexed library
-- **Transparent logging**: Full audit trail for accountability
-- **Deterministic**: Same input always produces same output
+- **Session-state driven**: Playlist edits, history, and reset behavior live in the Streamlit session
+- **User-controlled personalization**: Profile thresholds directly affect playlist grouping
+- **Normalized input**: Added songs are cleaned before entering the library
+- **Searchable playlists**: Users can filter by song metadata while browsing
+- **Inspectable behavior**: Lucky picks, history, and stats make the app easy to explore
 
 ---
 
@@ -104,12 +126,12 @@ data/
 └── songs.csv            # 10-song dataset
 ```
 
-### New RAG Functions
+### Core Functions
 
 **recommender.py:**
 ```python
 def retrieve_and_rank(user_prefs, songs, k=5, mode=None, retrieve_k=15)
-    # RAG workflow: retrieve → rank → return (candidates, final_recs)
+    # Retrieve → rank → return (candidates, final_recs)
 
 def explain_retrieval_evidence(user_prefs, song)
     # Show which metadata drove retrieval
@@ -131,8 +153,8 @@ def log_recommendation(user_prefs, query, retrieved, final_recommendations, ...)
 
 ## Responsible AI Features
 
-- **Transparency**: Retrieval shows candidate count, explanations break down scores
-- **Guardrails**: Only recommend songs in the indexed library (no hallucinations)
+- **Transparency**: Users can see how songs are grouped, filtered, and picked
+- **Guardrails**: Normalization reduces inconsistent user input
 - **Logging**: Full audit trail with timestamps, preferences, retrieved songs, recommendations
 - **Accountability**: JSONL format for easy parsing and analysis
 
@@ -149,10 +171,10 @@ cd src && python evaluation.py
 
 ## Summary
 
-MoodMatch RAG upgrades the assignment recommender into a **transparent, auditable RAG system** by:
-- Adding a **retrieval stage** that filters candidates by metadata
-- Keeping existing **scoring logic** as the reranker
-- Providing **grounded explanations** tied to real song attributes
-- Maintaining **full audit logs** for accountability
+Playlist Chaos upgrades the assignment recommender into a **hands-on playlist organizer** by:
+- Adding playlist classification for Hype, Chill, and Mixed views
+- Letting users add and normalize songs directly in the UI
+- Providing searchable playlist tabs and random lucky-pick behavior
+- Keeping local history and playlist statistics in session state
 
-The system demonstrates core RAG principles: retrieval first, generation constrained to retrieved context, grounded explanations, and transparent evaluation.
+The system demonstrates practical playlist management behavior: user-controlled grouping, searchable browsing, stateful interaction, and lightweight recommendation support.
