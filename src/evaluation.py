@@ -9,8 +9,13 @@ This module provides:
 """
 
 from typing import Dict, List, Tuple, Set
-from recommender import retrieve_and_rank, load_songs
-from retrieval import compute_retrieval_metrics
+
+try:
+    from .recommender import retrieve_and_rank, load_songs
+    from .retrieval import compute_retrieval_metrics
+except ImportError:
+    from recommender import retrieve_and_rank, load_songs
+    from retrieval import compute_retrieval_metrics
 
 
 BENCHMARK_QUERIES = [

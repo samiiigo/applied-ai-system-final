@@ -163,7 +163,10 @@ def main() -> None:
     # Run evaluation if available
     if RETRIEVAL_AVAILABLE:
         try:
-            from evaluation import run_full_evaluation
+            try:
+                from .evaluation import run_full_evaluation
+            except ImportError:
+                from evaluation import run_full_evaluation
             print(f"\n{'='*70}")
             print("RUNNING RAG EVALUATION SUITE")
             print(f"{'='*70}")

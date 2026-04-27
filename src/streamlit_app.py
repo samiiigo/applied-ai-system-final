@@ -2,7 +2,7 @@
 
 from collections import Counter
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 import random
 
 import pandas as pd
@@ -302,7 +302,7 @@ def main() -> None:
             st.caption(f"{len(filtered)} songs shown")
             rows = _playlist_rows(filtered, tab_name)
             if rows:
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
             else:
                 st.info("No songs match this filter.")
 
@@ -319,7 +319,7 @@ def main() -> None:
             lucky_playlist = _classify_playlist(lucky_song, profile)
             st.session_state["history"].append(
                 {
-                    "timestamp": datetime.utcnow().isoformat(timespec="seconds"),
+                    "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                     "title": lucky_song.get("title", "Unknown"),
                     "artist": lucky_song.get("artist", "Unknown"),
                     "genre": lucky_song.get("genre", "Unknown"),
@@ -350,7 +350,7 @@ def main() -> None:
     st.subheader("Listening History")
     if history:
         history_df = pd.DataFrame(history[::-1])
-        st.dataframe(history_df, use_container_width=True, hide_index=True)
+        st.dataframe(history_df, width="stretch", hide_index=True)
         mood_counts = Counter(item.get("playlist", "Unknown") for item in history)
         st.caption(
             "Recent picks by playlist: "
@@ -386,7 +386,7 @@ def main() -> None:
         )
         st.write(f"Retrieved **{len(retrieved)}** candidates from **{len(songs)}** songs.")
         rows = _to_rows(recommendations)
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
         with st.expander("Show Request Payload"):
             st.json(user_prefs)
 
