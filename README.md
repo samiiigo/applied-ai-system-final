@@ -38,6 +38,20 @@ flowchart LR
 
 In short, this is a small end-to-end AI product loop: input, retrieval, ranking, explanation, user feedback, and evaluation.
 
+## Agentic workflow enhancement
+The recommendation flow now supports explicit multi-step reasoning with observable intermediate steps.
+
+What is implemented:
+1. Plan step: builds a recommendation plan from user preferences and run settings.
+2. Retrieve step: executes candidate retrieval and records source counts plus top retrieved items.
+3. Rank step: scores and re-orders candidates with diversity-aware ranking.
+4. Decide step: finalizes top-k output and records decision summary.
+
+Where you can observe the chain:
+1. CLI (`python -m src.main`): prints the decision trace before recommendations.
+2. Streamlit (`streamlit run src/streamlit_app.py`): enable "Show Agentic Reasoning Trace" to inspect structured trace JSON.
+3. Logs (`recommendations.jsonl`): each recommendation event now stores `decision_trace` for auditing.
+
 ## Setup instructions
 1. Clone the repository and move into the project folder.
 2. Create a virtual environment.

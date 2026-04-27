@@ -1,4 +1,4 @@
-from src.recommender import Song, UserProfile, Recommender, recommend_songs
+from src.recommender import Song, UserProfile, Recommender, recommend_songs, retrieve_rank_with_trace
 
 def make_small_recommender() -> Recommender:
     songs = [
@@ -182,3 +182,59 @@ def test_diversity_penalty_limits_repeated_artists():
     assert ranked[0][0]["artist"] == "Artist A"
     assert ranked[1][0]["artist"] == "Artist B"
     assert len({ranked[0][0]["artist"], ranked[1][0]["artist"]}) == 2
+
+
+def test_agentic_workflow_returns_trace_steps():
+    songs = [
+        {
+            "id": 1,
+            "title": "Trace Song A",
+            "artist": "Artist A",
+            "genre": "pop",
+            "mood": "euphoric",
+            "energy": 0.8,
+            "tempo_bpm": 120,
+            "valence": 0.8,
+            "danceability": 0.8,
+            "acousticness": 0.2,
+            "popularity_0_100": 90,
+            "release_decade": 2020,
+            "mood_tags": "party|bold",
+            "instrumentalness": 0.1,
+            "lyrical_density": 0.6,
+            "explicitness": 0.1,
+        },
+        {
+            "id": 2,
+            "title": "Trace Song B",
+            "artist": "Artist B",
+            "genre": "rock",
+            "mood": "intense",
+            "energy": 0.9,
+            "tempo_bpm": 130,
+            "valence": 0.4,
+            "danceability": 0.6,
+            "acousticness": 0.2,
+            "popularity_0_100": 86,
+            "release_decade": 2010,
+            "mood_tags": "adrenaline|bold",
+            "instrumentalness": 0.1,
+            "lyrical_density": 0.6,
+            "explicitness": 0.2,
+        },
+    ]
+    prefs = {
+        "genre": "pop",
+        "mood": "euphoric",
+        "energy": 0.8,
+        "preferred_mood_tags": ["party", "bold"],
+        "scoring_mode": "balanced",
+    }
+
+    result = retrieve_rank_with_trace(prefs, songs, k=1, retrieve_k=2)
+
+    assert "retrieved" in result
+    assert "final_recommendations" in result
+    assert "decision_trace" in result
+    assert len(result["decision_trace"]) >= 4
+    assert [step["stage"] for step in result["decision_trace"][:4]] == ["plan", "retrieve", "rank", "decide"]

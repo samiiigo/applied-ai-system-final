@@ -9,10 +9,10 @@ import pandas as pd
 import streamlit as st
 
 try:
-    from .recommender import load_songs, retrieve_and_rank
+    from .recommender import load_songs, retrieve_rank_with_trace
     from .logger import log_recommendation, log_feedback
 except ImportError:
-    from recommender import load_songs, retrieve_and_rank
+    from recommender import load_songs, retrieve_rank_with_trace
     from logger import log_recommendation, log_feedback
 
 
@@ -374,6 +374,7 @@ def main() -> None:
     top_k = st.slider("Recommendations Count", min_value=1, max_value=10, value=5)
     scoring_mode = st.selectbox("Scoring Mode", SCORING_MODES, index=0)
     mood_tags_text = st.text_input("Preferred Mood Tags (comma-separated)", value="party,bold")
+    show_trace = st.checkbox("Show Agentic Reasoning Trace", value=True)
     preferred_tags = [tag.strip() for tag in mood_tags_text.split(",") if tag.strip()]
 
     user_prefs = {
@@ -385,13 +386,16 @@ def main() -> None:
     }
 
     if st.button("Get Recommendations", type="primary"):
-        retrieved, recommendations = retrieve_and_rank(
+        workflow = retrieve_rank_with_trace(
             user_prefs=user_prefs,
             songs=songs,
             k=top_k,
             mode=scoring_mode,
             retrieve_k=min(len(songs), max(top_k * 2, 8)),
         )
+        retrieved = workflow["retrieved"]
+        recommendations = workflow["final_recommendations"]
+        decision_trace = workflow["decision_trace"]
         recommendation_event_id = log_recommendation(
             user_prefs=user_prefs,
             query="streamlit-ui",
@@ -399,12 +403,16 @@ def main() -> None:
             final_recommendations=recommendations,
             mode=scoring_mode,
             confidence="medium",
+            decision_trace=decision_trace,
         )
         st.session_state["latest_recommendations"] = recommendations
         st.session_state["latest_recommendation_event_id"] = recommendation_event_id
         st.write(f"Retrieved **{len(retrieved)}** candidates from **{len(songs)}** songs.")
         rows = _to_rows(recommendations)
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+        if show_trace:
+            with st.expander("Agentic Decision Trace", expanded=True):
+                st.json(decision_trace)
         with st.expander("Show Request Payload"):
             st.json(user_prefs)
 
