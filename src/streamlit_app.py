@@ -10,8 +10,10 @@ import streamlit as st
 
 try:
     from .recommender import load_songs, retrieve_and_rank
+    from .logger import log_recommendation, log_feedback
 except ImportError:
     from recommender import load_songs, retrieve_and_rank
+    from logger import log_recommendation, log_feedback
 
 
 DATA_PATH = "data/songs.json"
@@ -55,6 +57,12 @@ def _init_session_state(default_songs):
             "chill_max_energy": 0.45,
             "include_mixed": True,
         }
+
+    if "latest_recommendations" not in st.session_state:
+        st.session_state["latest_recommendations"] = []
+
+    if "latest_recommendation_event_id" not in st.session_state:
+        st.session_state["latest_recommendation_event_id"] = None
 
 
 def _classify_playlist(song, profile):
@@ -384,11 +392,61 @@ def main() -> None:
             mode=scoring_mode,
             retrieve_k=min(len(songs), max(top_k * 2, 8)),
         )
+        recommendation_event_id = log_recommendation(
+            user_prefs=user_prefs,
+            query="streamlit-ui",
+            retrieved=retrieved,
+            final_recommendations=recommendations,
+            mode=scoring_mode,
+            confidence="medium",
+        )
+        st.session_state["latest_recommendations"] = recommendations
+        st.session_state["latest_recommendation_event_id"] = recommendation_event_id
         st.write(f"Retrieved **{len(retrieved)}** candidates from **{len(songs)}** songs.")
         rows = _to_rows(recommendations)
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
         with st.expander("Show Request Payload"):
             st.json(user_prefs)
+
+    if st.session_state.get("latest_recommendations") and st.session_state.get("latest_recommendation_event_id"):
+        st.subheader("Recommendation Feedback")
+        st.caption("Mark each recommendation as liked or skipped to improve future learned weights.")
+
+        recommendation_event_id = st.session_state["latest_recommendation_event_id"]
+        for idx, rec in enumerate(st.session_state["latest_recommendations"], start=1):
+            song, score, _ = rec
+            song_id = song.get("id")
+            title = song.get("title", "Unknown")
+            artist = song.get("artist", "Unknown")
+            score_text = f"{float(score):.2f}"
+
+            col_info, col_like, col_skip = st.columns([6, 1, 1])
+            col_info.write(f"{idx}. **{title}** by **{artist}** (score: {score_text})")
+
+            like_clicked = col_like.button("Like", key=f"like_{recommendation_event_id}_{song_id}_{idx}")
+            skip_clicked = col_skip.button("Skip", key=f"skip_{recommendation_event_id}_{song_id}_{idx}")
+
+            if like_clicked:
+                log_feedback(
+                    recommendation_event_id=recommendation_event_id,
+                    song_id=song_id,
+                    feedback="liked",
+                    rank=idx,
+                    score=float(score),
+                    metadata={"source": "streamlit"},
+                )
+                st.success(f"Feedback saved: liked '{title}'.")
+
+            if skip_clicked:
+                log_feedback(
+                    recommendation_event_id=recommendation_event_id,
+                    song_id=song_id,
+                    feedback="skipped",
+                    rank=idx,
+                    score=float(score),
+                    metadata={"source": "streamlit"},
+                )
+                st.success(f"Feedback saved: skipped '{title}'.")
 
 
 if __name__ == "__main__":

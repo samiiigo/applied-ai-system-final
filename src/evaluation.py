@@ -211,7 +211,7 @@ def check_groundedness(final_recommendations: List[Tuple[Dict, float, str]]) -> 
     }
 
 
-def run_full_evaluation(csv_path: str = "../data/songs.csv", verbose: bool = True) -> Dict[str, any]:
+def run_full_evaluation(csv_path: str = "data/songs.csv", verbose: bool = True) -> Dict[str, any]:
     """
     Run the complete evaluation suite: retrieval metrics + groundedness checks.
     """

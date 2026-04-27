@@ -170,7 +170,7 @@ def main() -> None:
             print(f"\n{'='*70}")
             print("RUNNING RAG EVALUATION SUITE")
             print(f"{'='*70}")
-            eval_results = run_full_evaluation(csv_path="../data/songs.csv", verbose=False)
+            eval_results = run_full_evaluation(csv_path="data/songs.csv", verbose=False)
             print(f"\nEvaluation Summary:")
             print(f"  Genre Recall: {eval_results['retrieval']['aggregate_metrics']['avg_genre_recall']:.1%}")
             print(f"  Mood Recall:  {eval_results['retrieval']['aggregate_metrics']['avg_mood_recall']:.1%}")

@@ -13,7 +13,8 @@ Logs are written to a JSONL file for auditing and analysis.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
+import uuid
 from typing import Dict, List, Optional, Any
 
 
@@ -37,7 +38,7 @@ class RecommendationLogger:
         mode: str = "balanced",
         confidence: str = "medium",
         error: Optional[str] = None,
-    ) -> None:
+    ) -> str:
         """
         Log a complete recommendation event.
         
@@ -50,8 +51,38 @@ class RecommendationLogger:
             confidence: Confidence level (strong, medium, weak).
             error: Optional error message if recommendation failed.
         """
+        event_id = str(uuid.uuid4())
+        normalized_final_recommendations = []
+        for rank, rec in enumerate(final_recommendations, start=1):
+            song = rec if isinstance(rec, dict) else rec[0] if rec else {}
+            score = rec.get("score") if isinstance(rec, dict) else (rec[1] if len(rec) > 1 else None)
+            normalized_final_recommendations.append(
+                {
+                    "rank": rank,
+                    "id": song.get("id"),
+                    "title": song.get("title"),
+                    "artist": song.get("artist"),
+                    "genre": song.get("genre"),
+                    "mood": song.get("mood"),
+                    "score": score,
+                    "song_features": {
+                        "energy": song.get("energy"),
+                        "danceability": song.get("danceability"),
+                        "acousticness": song.get("acousticness"),
+                        "popularity_0_100": song.get("popularity_0_100"),
+                        "release_decade": song.get("release_decade"),
+                        "mood_tags": song.get("mood_tags", ""),
+                        "instrumentalness": song.get("instrumentalness"),
+                        "lyrical_density": song.get("lyrical_density"),
+                        "explicitness": song.get("explicitness"),
+                    },
+                }
+            )
+
         event = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "recommendation",
+            "event_id": event_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "user_preferences": user_prefs,
             "query": query,
             "mode": mode,
@@ -66,20 +97,37 @@ class RecommendationLogger:
                 }
                 for r in retrieved
             ],
-            "final_recommendations_count": len(final_recommendations),
-            "final_recommendations": [
-                {
-                    "id": r.get("id") if isinstance(r, dict) else r[0].get("id") if isinstance(r[0], dict) else None,
-                    "title": r.get("title") if isinstance(r, dict) else r[0].get("title") if isinstance(r[0], dict) else None,
-                    "artist": r.get("artist") if isinstance(r, dict) else r[0].get("artist") if isinstance(r[0], dict) else None,
-                    "score": r.get("score") if isinstance(r, dict) else (r[1] if len(r) > 1 else None),
-                }
-                for r in final_recommendations
-            ],
+            "final_recommendations_count": len(normalized_final_recommendations),
+            "final_recommendations": normalized_final_recommendations,
             "confidence": confidence,
             "error": error,
         }
         
+        with open(self.log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(event) + "\n")
+        return event_id
+
+    def log_feedback(
+        self,
+        recommendation_event_id: str,
+        song_id: Optional[int],
+        feedback: str,
+        rank: Optional[int] = None,
+        score: Optional[float] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Log explicit user feedback linked to a prior recommendation event."""
+        event = {
+            "event_type": "feedback",
+            "event_id": str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "recommendation_event_id": recommendation_event_id,
+            "song_id": song_id,
+            "feedback": str(feedback or "").strip().lower(),
+            "rank": rank,
+            "score": score,
+            "metadata": metadata or {},
+        }
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(event) + "\n")
     
@@ -127,6 +175,18 @@ def log_recommendation(
     mode: str = "balanced",
     confidence: str = "medium",
     error: Optional[str] = None,
-) -> None:
+) -> str:
     """Convenience function to log via the global logger."""
-    get_logger().log_recommendation(user_prefs, query, retrieved, final_recommendations, mode, confidence, error)
+    return get_logger().log_recommendation(user_prefs, query, retrieved, final_recommendations, mode, confidence, error)
+
+
+def log_feedback(
+    recommendation_event_id: str,
+    song_id: Optional[int],
+    feedback: str,
+    rank: Optional[int] = None,
+    score: Optional[float] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Convenience function to log explicit feedback via the global logger."""
+    get_logger().log_feedback(recommendation_event_id, song_id, feedback, rank, score, metadata)
