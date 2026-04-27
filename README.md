@@ -38,6 +38,10 @@ flowchart LR
 
 In short, this is a small end-to-end AI product loop: input, retrieval, ranking, explanation, user feedback, and evaluation.
 
+Static architecture diagram asset for submission folders:
+
+![System Architecture Diagram](assets/system_architecture.svg)
+
 ## Agentic workflow enhancement
 The recommendation flow now supports explicit multi-step reasoning with observable intermediate steps.
 
@@ -178,6 +182,21 @@ Output (top 3):
 2. Thunderstruck | score=8.26
 3. Sandstorm     | score=7.09
 ```
+
+## Demo walkthrough media
+I included three end-to-end example inputs and outputs above.
+
+For grading media requirements:
+1. Loom video link (replace before final deadline): `ADD_YOUR_LOOM_LINK_HERE`
+2. Walkthrough evidence file: `assets/demo_walkthrough.md`
+3. Architecture diagram asset: `assets/system_architecture.svg`
+
+If you submit GIF or screenshots instead of Loom, place them in `assets/` and list filenames in `assets/demo_walkthrough.md`.
+
+## Organized assets
+All visual and media assets are stored in the dedicated `assets/` folder:
+1. `assets/system_architecture.svg`
+2. `assets/demo_walkthrough.md`
 
 ## Design decisions and trade-offs
 1. Retrieval plus ranking instead of one big score pass.

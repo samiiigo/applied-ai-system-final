@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="600" viewBox="0 0 1300 600" role="img" aria-labelledby="title desc">
+  <title id="title">Playlist Chaos System Architecture</title>
+  <desc id="desc">User requests flow through CLI or Streamlit UI into retrieval and ranking, then outputs and feedback logging.</desc>
+  <defs>
+    <style>
+      .box { fill: #f8fafc; stroke: #1f2937; stroke-width: 2; rx: 10; ry: 10; }
+      .io { fill: #e0f2fe; }
+      .data { fill: #dcfce7; }
+      .gate { fill: #fef3c7; }
+      .label { font: 18px sans-serif; fill: #111827; }
+      .small { font: 15px sans-serif; fill: #374151; }
+      .arrow { stroke: #111827; stroke-width: 2.5; fill: none; marker-end: url(#arrowHead); }
+    </style>
+    <marker id="arrowHead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#111827"/>
+    </marker>
+  </defs>
+
+  <rect class="box io" x="40" y="80" width="220" height="90"/>
+  <text class="label" x="150" y="118" text-anchor="middle">User</text>
+  <text class="small" x="150" y="145" text-anchor="middle">Preferences + Feedback</text>
+
+  <rect class="box io" x="320" y="80" width="240" height="90"/>
+  <text class="label" x="440" y="118" text-anchor="middle">CLI / Streamlit UI</text>
+  <text class="small" x="440" y="145" text-anchor="middle">Input + Display Layer</text>
+
+  <rect class="box data" x="320" y="230" width="240" height="90"/>
+  <text class="label" x="440" y="268" text-anchor="middle">Song Catalog</text>
+  <text class="small" x="440" y="295" text-anchor="middle">src/data/songs.json</text>
+
+  <rect class="box" x="620" y="80" width="230" height="90"/>
+  <text class="label" x="735" y="118" text-anchor="middle">Retriever</text>
+  <text class="small" x="735" y="145" text-anchor="middle">Candidate Generation</text>
+
+  <rect class="box" x="900" y="80" width="250" height="90"/>
+  <text class="label" x="1025" y="118" text-anchor="middle">Recommendation Agent</text>
+  <text class="small" x="1025" y="145" text-anchor="middle">Rank + Explain + Diversity</text>
+
+  <rect class="box data" x="900" y="230" width="250" height="90"/>
+  <text class="label" x="1025" y="268" text-anchor="middle">Recommendation Logs</text>
+  <text class="small" x="1025" y="295" text-anchor="middle">recommendations.jsonl</text>
+
+  <rect class="box gate" x="620" y="380" width="230" height="90"/>
+  <text class="label" x="735" y="418" text-anchor="middle">Quality Gate</text>
+  <text class="small" x="735" y="445" text-anchor="middle">Pytest + Evaluation</text>
+
+  <path class="arrow" d="M260 125 H320"/>
+  <path class="arrow" d="M560 125 H620"/>
+  <path class="arrow" d="M850 125 H900"/>
+  <path class="arrow" d="M1025 170 V230"/>
+  <path class="arrow" d="M440 170 V230"/>
+  <path class="arrow" d="M560 260 C620 260, 620 160, 620 125"/>
+  <path class="arrow" d="M1025 320 V350 C1025 380, 850 380, 850 425"/>
+  <path class="arrow" d="M735 380 V170"/>
+  <path class="arrow" d="M1025 320 C1025 370, 300 370, 300 125 C300 105, 320 105, 320 105"/>
+</svg>
