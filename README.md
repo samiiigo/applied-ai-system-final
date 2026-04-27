@@ -1,180 +1,223 @@
-# 🎵 Playlist Chaos: AI-Assisted Music Recommendation and Playlist Organizer
+# Playlist Chaos: AI-assisted music recommender and playlist organizer
 
-## Project Summary
+## Original project from Modules 1-3
+My original project from Modules 1-3 was Music Recommender Simulation. It was a rule-based song ranking engine that scored tracks by genre, mood, and energy, then returned top matches with short explanations. The main goal was to learn how recommendation logic works under the hood without hiding behavior behind a black box model.
 
-This project implements a **Streamlit-based playlist organizer** that helps users explore a music library, classify songs into mood-based playlists, and get lightweight recommendation behavior from profile settings and song attributes.
+## Title and summary
+Playlist Chaos extends that original recommender into a full interactive system with both CLI and Streamlit interfaces. Users can browse and organize playlists, add songs, request recommendations, and give like or skip feedback that gets logged for analysis.
 
-The system helps users discover songs that match their mood, genre preferences, and energy levels. Instead of treating recommendations as a black box, it:
+Why this matters: I wanted a portfolio project that shows practical AI system thinking, not just a model notebook. The project demonstrates retrieval + ranking, explainability, human feedback capture, and test coverage in one small but complete application.
 
-1. **Classifies** songs into Hype, Chill, or Mixed playlists using profile thresholds and song metadata
-2. **Searches** playlist views so users can filter songs by title, artist, mood, genre, or tags
-3. **Adds** new songs through a normalized input form inside the app
-4. **Recommends** songs with lightweight profile-aware scoring and random lucky-pick behavior
-5. **Tracks** pick history and playlist statistics for visibility and reuse
+## Architecture overview
+The system diagram below maps a straightforward pipeline:
 
-This design follows a pragmatic playlist-first workflow: playlist classification happens first, then search, random selection, and recommendation logic use that organized library.
+```mermaid
+flowchart LR
+    U[User: profile + preferences + optional new songs] --> UI[Streamlit UI / CLI]
+    D[(songs.json library)] --> UI
 
----
+    UI --> R[Retriever\nmetadata candidate search]
+    R --> A[Recommendation Agent\nranker + diversity penalty + explanations]
+    A --> O[Outputs\nTop-K recommendations + explanations]
+    O --> L[(recommendations.jsonl logs)]
 
-## How The System Works
+    O --> H[Human-in-the-loop\nLike / Skip feedback in UI]
+    H --> L
 
-### Data Model
-Each song has metadata including:
-- **Title, Artist, Genre, Mood** — categorical attributes
-- **Energy, Danceability, Acousticness** — numeric 0-1 scales
-- **Tempo, Valence, Popularity, Decade** — additional context
-- **Mood Tags** (pipe-separated) — fine-grained emotional tags
-- **Instrumentalness, Lyrical Density, Explicitness** — content features
+    T[Pytest test suite\nunit/helper tests] --> C[Quality gate]
+    E[Evaluator\nretrieval metrics + groundedness checks] --> C
+    C --> A
+```
 
-### Playlist Flow
+1. User preferences and the song library enter through the Streamlit UI or CLI.
+2. A retriever narrows the catalog to likely candidates using metadata signals.
+3. The ranking layer scores candidates, applies a diversity penalty, and generates explanation text.
+4. Outputs are shown to the user and logged to recommendations.jsonl.
+5. The user can submit like or skip feedback, which is also logged.
+6. Pytest and the evaluation harness act as quality gates for helper logic, retrieval quality, and grounded explanations.
 
-**1. Profile Setup**
-- Set a profile name, favorite genre, Hype minimum energy, Chill maximum energy, and whether to show Mixed
+In short, this is a small end-to-end AI product loop: input, retrieval, ranking, explanation, user feedback, and evaluation.
 
-**2. Library Expansion**
-- Add new songs with title, artist, genre, mood, energy, and tags
-- Normalize user input before storing it in session state
-
-**3. Playlist Classification**
-- Assign songs to Hype, Chill, or Mixed based on the current profile and metadata
-
-**4. Playlist Browsing**
-- Show playlist tabs with search filtering for quick lookup
-
-**5. Lucky Picks and History**
-- Pick random songs from any playlist and keep a local history of picks
-
-**6. Statistics**
-- Summarize total songs, playlist counts, hype ratio, average energy, and top artist
-
-### Recommendation Flow
-
-**1. Retrieval Stage**
-- Parse user profile into structured hints (genre, mood, energy, tags)
-- Filter song library by metadata matching (genre +2.0, mood +1.5, energy +1.0, tags +0.5 each)
-- Return top-k candidates (default k=8)
-
-**2. Ranking Stage**
-- Score retrieved candidates using weighted attributes
-- Apply diversity penalty to avoid repeating artists/genres
-- Return top-k final recommendations (default k=5)
-
-**3. Explanation Stage**
-- Break down the score component-by-component
-- Show retrieval evidence (which metadata drove the match)
-
-**4. Logging Stage**
-- Log every recommendation event to `recommendations.jsonl`
-
-### Key Design Decisions
-
-- **Session-state driven**: Playlist edits, history, and reset behavior live in the Streamlit session
-- **User-controlled personalization**: Profile thresholds directly affect playlist grouping
-- **Normalized input**: Added songs are cleaned before entering the library
-- **Searchable playlists**: Users can filter by song metadata while browsing
-- **Inspectable behavior**: Lucky picks, history, and stats make the app easy to explore
-
----
-
-## Evaluation Results
-
-### Retrieval Quality (5 benchmark queries)
-
-| Metric | Score |
-|--------|-------|
-| **Genre Recall@5** | 100% |
-| **Mood Recall@5** | 90% |
-| **Groundedness** | 100% |
-
-**Interpretation**: High recall means we find relevant songs. 100% groundedness means all explanations mention real metadata.
-
----
-
-## Getting Started
-
-### Setup
+## Setup instructions
+1. Clone the repository and move into the project folder.
+2. Create a virtual environment.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate      # Mac/Linux
-.venv\Scripts\activate         # Windows
+```
+
+3. Activate the virtual environment.
+
+Windows (PowerShell or Git Bash):
+
+```bash
+.venv/Scripts/activate
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+4. Install dependencies.
+
+```bash
 pip install -r requirements.txt
 ```
 
-### Run
+5. Run the CLI demo.
 
 ```bash
-# Show RAG recommendations
 python -m src.main
+```
 
-# Run evaluation suite
+6. Run the Streamlit app.
+
+```bash
+streamlit run src/streamlit_app.py
+```
+
+7. Run tests.
+
+```bash
+pytest -q
+```
+
+8. Run evaluation metrics.
+
+```bash
 python src/evaluation.py
 ```
 
----
+## Sample interactions
+These examples were generated from the current codebase and dataset.
 
-## Architecture
+### Example 1: party pop profile
+Input:
 
-```
-src/
-├── main.py               # CLI runner
-├── recommender.py        # Core logic + RAG functions
-├── retrieval.py         # Metadata filtering & scoring
-├── logger.py            # JSONL audit logging
-└── evaluation.py        # Benchmarks & metrics
-data/
-└── songs.csv            # 10-song dataset
-```
-
-### Core Functions
-
-**recommender.py:**
 ```python
-def retrieve_and_rank(user_prefs, songs, k=5, mode=None, retrieve_k=15)
-    # Retrieve → rank → return (candidates, final_recs)
-
-def explain_retrieval_evidence(user_prefs, song)
-    # Show which metadata drove retrieval
+{
+    "genre": "pop",
+    "mood": "euphoric",
+    "energy": 0.78,
+    "preferred_mood_tags": ["party", "bold"],
+    "scoring_mode": "genre-first"
+}
 ```
 
-**retrieval.py:**
+Output (top 3):
+
+```text
+1. Blinding Lights | score=8.19
+2. Levitating      | score=7.33
+3. Greedy          | score=6.29
+```
+
+Sample explanation text:
+
+```text
+genre match (+3.0); mood match (+0.8); energy closeness (+2.45);
+non-acoustic preference match (+0.4); popularity boost (+0.94);
+mood-tag overlap x1 (+0.60)
+```
+
+### Example 2: chill study profile
+Input:
+
 ```python
-def retrieve_candidates(user_prefs, songs, k=10)
-    # Returns top-k songs with retrieval scores
+{
+    "genre": "lofi",
+    "mood": "peaceful",
+    "energy": 0.30,
+    "likes_acoustic": True,
+    "preferred_mood_tags": ["study", "relax"],
+    "scoring_mode": "mood-first"
+}
 ```
 
-**logger.py:**
+Output (top 3):
+
+```text
+1. Lo-fi Rain | score=10.57
+2. Weightless | score=7.90
+3. Sincerity  | score=6.28
+```
+
+### Example 3: intense workout profile
+Input:
+
 ```python
-def log_recommendation(user_prefs, query, retrieved, final_recommendations, ...)
-    # Log event to recommendations.jsonl
+{
+    "genre": "rap",
+    "mood": "intense",
+    "energy": 0.90,
+    "preferred_mood_tags": ["adrenaline"],
+    "scoring_mode": "energy-focused"
+}
 ```
 
----
+Output (top 3):
 
-## Responsible AI Features
-
-- **Transparency**: Users can see how songs are grouped, filtered, and picked
-- **Guardrails**: Normalization reduces inconsistent user input
-- **Logging**: Full audit trail with timestamps, preferences, retrieved songs, recommendations
-- **Accountability**: JSONL format for easy parsing and analysis
-
----
-
-## Testing
-
-```bash
-pytest tests/test_recommender.py -v
-cd src && python evaluation.py
+```text
+1. Evil Jordan   | score=8.65
+2. Thunderstruck | score=8.26
+3. Sandstorm     | score=7.09
 ```
 
----
+## Design decisions and trade-offs
+1. Retrieval plus ranking instead of one big score pass.
+Reason: easier to inspect why songs were considered at all, then why they were ranked high.
+Trade-off: more moving parts than a single pass scorer.
 
-## Summary
+2. Rule-based scoring with explicit weights.
+Reason: behavior is transparent and easy to tune during class experiments.
+Trade-off: less adaptive than learned models and sensitive to manual weight choices.
 
-Playlist Chaos upgrades the assignment recommender into a **hands-on playlist organizer** by:
-- Adding playlist classification for Hype, Chill, and Mixed views
-- Letting users add and normalize songs directly in the UI
-- Providing searchable playlist tabs and random lucky-pick behavior
-- Keeping local history and playlist statistics in session state
+3. Diversity penalty in ranking.
+Reason: avoids repetitive top results from the same artist or genre.
+Trade-off: sometimes pushes down a technically better match for variety.
 
-The system demonstrates practical playlist management behavior: user-controlled grouping, searchable browsing, stateful interaction, and lightweight recommendation support.
+4. Streamlit session state for playlist edits and history.
+Reason: gives immediate, interactive behavior without backend infrastructure.
+Trade-off: state is local to a session and not multi-user persistent.
+
+5. JSONL logging for recommendations and feedback.
+Reason: simple audit trail and easy to parse for analysis.
+Trade-off: no dashboard yet; analysis is manual or script-based.
+
+## Testing summary
+Current status:
+
+```text
+15 passed in 0.72s
+```
+
+Reliability summary:
+
+```text
+15/15 automated tests passed.
+Benchmark evaluation reached 100% recall on 5 queries and 100% groundedness.
+Average precision was lower on mixed queries, so validation, normalization, and diversity rules were kept in place to reduce weak matches.
+```
+
+What worked:
+1. Unit tests for scoring behavior, scoring modes, diversity penalties, and explanation generation.
+2. Streamlit helper tests for playlist classification, search, stat computation, normalization, and row formatting.
+3. Evaluation harness reports 100% recall for expected genres and moods across benchmark queries in the current setup.
+4. Groundedness check reports 100% for sampled recommendations, meaning explanations reference known metadata fields.
+
+What did not work as well:
+1. Precision is much lower than recall in evaluation, so some retrieved songs are related but not the tightest match.
+2. The catalog is still relatively small and biased toward certain genres and moods.
+3. Mood matching is still mostly categorical and can miss nuanced in-between moods.
+
+What I learned from testing:
+1. High recall is easy to achieve with broad retrieval rules.
+2. Precision and diversity need constant balancing.
+3. Good tests for helper functions prevent UI logic regressions when features expand.
+
+## Reflection
+This project taught me that AI problem-solving is mostly systems thinking: how data, heuristics, user interaction, and evaluation connect. The recommendation quality did not improve by changing one formula alone; it improved when I tightened the full loop of retrieval, ranking, explanation, and feedback logging.
+
+I also learned to treat transparency as a feature, not an afterthought. Writing explanation strings, logging recommendation events, and running benchmark checks made it easier to spot weak points and adjust quickly. If I continue this project, my next step is expanding the catalog and using logged feedback to adapt weights over time.
