@@ -19,7 +19,7 @@ except ImportError:
 try:
     from .retrieval import retrieve_candidates
     from .logger import log_recommendation
-    from .recommender import retrieve_and_rank, explain_retrieval_evidence
+    from .recommender import retrieve_rank_with_trace, explain_retrieval_evidence
     RETRIEVAL_AVAILABLE = True
 except ImportError:
     RETRIEVAL_AVAILABLE = False
@@ -93,18 +93,38 @@ def print_rag_recommendations(profile_name: str, user_prefs: dict, songs: list) 
         return
     
     mode = user_prefs.get("scoring_mode", "balanced")
-    retrieved, recommendations = retrieve_and_rank(user_prefs, songs, k=5, retrieve_k=8, mode=mode)
+    workflow = retrieve_rank_with_trace(user_prefs, songs, k=5, retrieve_k=8, mode=mode)
+    retrieved = workflow["retrieved"]
+    recommendations = workflow["final_recommendations"]
+    decision_trace = workflow["decision_trace"]
     
     print(f"\n=== {profile_name} (RAG) ===")
     print(f"Scoring Mode: {mode}")
     print(f"Preferences: {user_prefs}")
     print(f"\nRetrieval: {len(retrieved)} candidates retrieved from {len(songs)} songs")
     print("-" * 70)
+    print("Agentic Decision Trace:")
+    for step in decision_trace:
+        print(f"  Step {step.get('step')}: [{step.get('stage')}] {step.get('action')}")
+        output = step.get("output", {})
+        if step.get("stage") == "retrieve":
+            print(f"    -> retrieved_count={output.get('retrieved_count', 0)}")
+        if step.get("stage") == "decide":
+            print(f"    -> {output.get('decision_summary', '')}")
+    print("-" * 70)
     print("Top 5 recommendations with retrieval evidence:")
     _print_recommendation_table(recommendations)
     
     # Log the recommendation event
-    log_recommendation(user_prefs, profile_name, retrieved, recommendations, mode=mode, confidence="medium")
+    log_recommendation(
+        user_prefs,
+        profile_name,
+        retrieved,
+        recommendations,
+        mode=mode,
+        confidence="medium",
+        decision_trace=decision_trace,
+    )
 
 def main() -> None:
     songs = load_songs("data/songs.csv")

@@ -38,6 +38,7 @@ class RecommendationLogger:
         mode: str = "balanced",
         confidence: str = "medium",
         error: Optional[str] = None,
+        decision_trace: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """
         Log a complete recommendation event.
@@ -101,6 +102,7 @@ class RecommendationLogger:
             "final_recommendations": normalized_final_recommendations,
             "confidence": confidence,
             "error": error,
+            "decision_trace": decision_trace or [],
         }
         
         with open(self.log_file, "a", encoding="utf-8") as f:
@@ -175,9 +177,19 @@ def log_recommendation(
     mode: str = "balanced",
     confidence: str = "medium",
     error: Optional[str] = None,
+    decision_trace: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Convenience function to log via the global logger."""
-    return get_logger().log_recommendation(user_prefs, query, retrieved, final_recommendations, mode, confidence, error)
+    return get_logger().log_recommendation(
+        user_prefs,
+        query,
+        retrieved,
+        final_recommendations,
+        mode,
+        confidence,
+        error,
+        decision_trace,
+    )
 
 
 def log_feedback(

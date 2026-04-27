@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 import json
 import os
@@ -474,6 +474,9 @@ def retrieve_and_rank(
     k: int = 5,
     mode: Optional[str] = None,
     retrieve_k: int = 15,
+    extra_song_sources: Optional[List[List[Dict]]] = None,
+    custom_documents: Optional[List[Dict]] = None,
+    custom_document_weight: float = 1.0,
 ) -> Tuple[List[Dict], List[Tuple[Dict, float, str]]]:
     """
     RAG-style recommendation: retrieve candidates, then rank.
@@ -501,13 +504,164 @@ def retrieve_and_rank(
         retrieved = songs
     else:
         # Call retrieval layer to get top-k candidates
-        retrieved_with_scores = retrieve_candidates(user_prefs, songs, k=retrieve_k)
+        retrieved_with_scores = retrieve_candidates(
+            user_prefs,
+            songs,
+            k=retrieve_k,
+            extra_song_sources=extra_song_sources,
+            custom_documents=custom_documents,
+            custom_document_weight=custom_document_weight,
+        )
         retrieved = [song for song, score in retrieved_with_scores]
     
     # Score and rank retrieved candidates using existing logic
     final_recs = recommend_songs(user_prefs, retrieved, k=k, mode=mode)
     
     return retrieved, final_recs
+
+
+def retrieve_rank_with_trace(
+    user_prefs: Dict,
+    songs: List[Dict],
+    k: int = 5,
+    mode: Optional[str] = None,
+    retrieve_k: int = 15,
+    extra_song_sources: Optional[List[List[Dict]]] = None,
+    custom_documents: Optional[List[Dict]] = None,
+    custom_document_weight: float = 1.0,
+) -> Dict[str, Any]:
+    """
+    Agentic workflow for recommendations with explicit intermediate steps.
+
+    Returns a dictionary with retrieved candidates, final recommendations,
+    and an observable decision trace that documents each reasoning stage.
+    """
+    active_mode = mode or user_prefs.get("scoring_mode", DEFAULT_SCORING_MODE)
+
+    trace: List[Dict[str, Any]] = []
+    trace.append(
+        {
+            "step": 1,
+            "stage": "plan",
+            "action": "Build recommendation plan from user preferences",
+            "input": {
+                "preferences": {
+                    "genre": user_prefs.get("genre"),
+                    "mood": user_prefs.get("mood"),
+                    "energy": user_prefs.get("energy"),
+                    "preferred_mood_tags": user_prefs.get("preferred_mood_tags", []),
+                },
+                "k": k,
+                "retrieve_k": retrieve_k,
+                "mode": active_mode,
+            },
+            "output": {
+                "plan": [
+                    "Retrieve candidates from one or more sources",
+                    "Apply optional custom-document boosts",
+                    "Rank with weighted scorer + diversity penalty",
+                    "Return top-k with explanations",
+                ]
+            },
+        }
+    )
+
+    try:
+        from retrieval import retrieve_candidates
+        retrieval_backend = "retrieval.retrieve_candidates"
+    except ImportError:
+        retrieve_candidates = None
+        retrieval_backend = "fallback: all songs"
+
+    if retrieve_candidates is None:
+        retrieved_with_scores = [(song, 0.0) for song in songs[:retrieve_k]]
+    else:
+        retrieved_with_scores = retrieve_candidates(
+            user_prefs,
+            songs,
+            k=retrieve_k,
+            extra_song_sources=extra_song_sources,
+            custom_documents=custom_documents,
+            custom_document_weight=custom_document_weight,
+        )
+
+    retrieved = [song for song, _ in retrieved_with_scores]
+    trace.append(
+        {
+            "step": 2,
+            "stage": "retrieve",
+            "action": "Collect candidate songs",
+            "tool_call": retrieval_backend,
+            "input": {
+                "base_song_count": len(songs),
+                "extra_sources_count": len(extra_song_sources or []),
+                "custom_document_count": len(custom_documents or []),
+                "custom_document_weight": custom_document_weight,
+            },
+            "output": {
+                "retrieved_count": len(retrieved),
+                "top_candidates": [
+                    {
+                        "title": song.get("title", "Unknown"),
+                        "artist": song.get("artist", "Unknown"),
+                        "score": round(float(score), 3),
+                    }
+                    for song, score in retrieved_with_scores[:5]
+                ],
+            },
+        }
+    )
+
+    ranked = recommend_songs(user_prefs, retrieved, k=k, mode=active_mode)
+    trace.append(
+        {
+            "step": 3,
+            "stage": "rank",
+            "action": "Score and diversify candidates",
+            "tool_call": "recommender.recommend_songs",
+            "input": {
+                "candidate_count": len(retrieved),
+                "mode": active_mode,
+                "k": k,
+            },
+            "output": {
+                "top_ranked": [
+                    {
+                        "rank": idx,
+                        "title": song.get("title", "Unknown"),
+                        "artist": song.get("artist", "Unknown"),
+                        "final_score": round(float(score), 3),
+                    }
+                    for idx, (song, score, _) in enumerate(ranked, start=1)
+                ]
+            },
+        }
+    )
+
+    selected = ranked[0][0] if ranked else {}
+    trace.append(
+        {
+            "step": 4,
+            "stage": "decide",
+            "action": "Finalize recommendation set",
+            "input": {
+                "ranked_count": len(ranked),
+            },
+            "output": {
+                "selected_top_song": {
+                    "title": selected.get("title", "None"),
+                    "artist": selected.get("artist", "None"),
+                },
+                "decision_summary": f"Selected top-{len(ranked)} songs using {active_mode} scoring after retrieval.",
+            },
+        }
+    )
+
+    return {
+        "retrieved": retrieved,
+        "final_recommendations": ranked,
+        "decision_trace": trace,
+    }
 
 
 def explain_retrieval_evidence(
