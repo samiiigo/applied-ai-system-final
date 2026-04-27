@@ -183,13 +183,14 @@ Output (top 3):
 3. Sandstorm     | score=7.09
 ```
 
-## Demo walkthrough media
-I included three end-to-end example inputs and outputs above.
+## Portfolio Links and Media
+These examples were generated from the current codebase and dataset.
 
 For grading media requirements:
-1. Loom video link (replace before final deadline): `ADD_YOUR_LOOM_LINK_HERE`
-2. Walkthrough evidence file: `assets/demo_walkthrough.md`
-3. Architecture diagram asset: `assets/system_architecture.svg`
+1. **GitHub Repository**: [samiiigo/applied-ai-system-final](https://github.com/samiiigo/applied-ai-system-final)
+2. **Loom video link**: [https://www.loom.com/share/848702c45bd845cb835a419546d1d431](https://www.loom.com/share/848702c45bd845cb835a419546d1d431)
+3. Walkthrough evidence file: `assets/demo_walkthrough.md`
+4. Architecture diagram asset: `assets/system_architecture.svg`
 
 If you submit GIF or screenshots instead of Loom, place them in `assets/` and list filenames in `assets/demo_walkthrough.md`.
 
@@ -251,6 +252,10 @@ What I learned from testing:
 3. Good tests for helper functions prevent UI logic regressions when features expand.
 
 ## Reflection
+
+**What this project says about me as an AI engineer:**
+Building this system demonstrates that I approach AI as a comprehensive engineering challenge, not just a model-building exercise. I focus on the entire pipeline—from retrieving and ranking data to building explainability, user feedback loops, and robust evaluation. It shows my ability to design transparent, testable systems where human-in-the-loop interactions directly inform and improve AI behavior, keeping reliability and user trust at the forefront.
+
 This project taught me that AI problem-solving is mostly systems thinking: how data, heuristics, user interaction, and evaluation connect. The recommendation quality did not improve by changing one formula alone; it improved when I tightened the full loop of retrieval, ranking, explanation, and feedback logging.
 
 I also learned to treat transparency as a feature, not an afterthought. Writing explanation strings, logging recommendation events, and running benchmark checks made it easier to spot weak points and adjust quickly. If I continue this project, my next step is expanding the catalog and using logged feedback to adapt weights over time.
